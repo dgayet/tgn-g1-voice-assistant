@@ -316,23 +316,25 @@ async def main():
     send_task = None
     play_task = None
     try:
-        async with client.aio.live.connect(model=model, config=config) as session:
-            end = True
-            turn_complete.set()
-            while True:
-                if end:
-                    await wait_for_wakeword(sock, WAKE_WORD)
-                    end = False
-                    if send_task is None:
-                        send_task = asyncio.create_task(send_one_turn(session))
-                        play_task = asyncio.create_task(play_reply_streaming(session))
+        while True:
+            await wait_for_wakeword(sock, WAKE_WORD)
+            async with client.aio.live.connect(model=model, config=config) as session:
+                send_task = asyncio.create_task(send_one_turn(session))
+                play_task = asyncio.create_task(play_reply_streaming(session))
 
-                try:
-                    await turn_complete.wait()
-                except Exception as e:
-                    eprint(f"Excepcion {e}")
-                turn_complete.clear()
-                end = await record_until_silence(sock, max_seconds = 30.0, end_word = END_WORD)
+                turn_complete.set()
+                while True:
+                    try:
+                        await turn_complete.wait()
+                    except Exception as e:
+                        eprint(f"Excepcion {e}")
+                    turn_complete.clear()
+                    end = await record_until_silence(sock, max_seconds = 30.0, end_word = END_WORD)
+                    if end:
+                        break
+
+                send_task.cancel()
+                play_task.cancel()
     finally:
         if send_task:
             send_task.cancel()
@@ -340,7 +342,6 @@ async def main():
             play_task.cancel()
         stop_pcm_stream(audioClient)
         eprint("Exiting...")
-
 
 if __name__ == "__main__":
     try:
