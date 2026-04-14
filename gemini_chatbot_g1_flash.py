@@ -2,8 +2,9 @@
 import asyncio
 import time
 import socket
-
 import math
+import sys
+
 from scipy import signal
 from google import genai
 from unitree_sdk2py.core.channel import ChannelFactoryInitialize
@@ -72,6 +73,9 @@ audioClient = AudioClient()
 audioClient.SetTimeout(10.0)
 audioClient.Init()
 
+def eprint(*args, **kwargs):
+    print(*args, **kwargs, file=sys.stderr)
+
 def array_resample(array : bytearray, in_rate : int, out_rate : int):
     factor = math.gcd(in_rate, out_rate)
     up = out_rate//factor
@@ -107,17 +111,17 @@ def play_pcm_stream(client, pcm_list, stream_id, stream_name="example", chunk_si
 
         if verbose:
             # Print info about the current chunk
-            print(f"[CHUNK {chunk_index}] offset = {offset}, size = {current_chunk_size} bytes")
-            print("  First 10 samples (int16): ", end="")
+            eprint(f"[CHUNK {chunk_index}] offset = {offset}, size = {current_chunk_size} bytes")
+            eprint("  First 10 samples (int16): ", end="")
             for i in range(0, min(20, len(chunk) - 1), 2):
                 sample = struct.unpack_from('<h', chunk, i)[0]
-                print(sample, end=" ")
-            print()
+                eprint(sample, end=" ")
+            eprint()
 
         # Send the chunk
         ret_code, _ = client.PlayStream(stream_name, stream_id, chunk)
         if ret_code != 0:
-            print(f"[ERROR] Failed to send chunk {chunk_index}, return code: {ret_code}")
+            eprint(f"[ERROR] Failed to send chunk {chunk_index}, return code: {ret_code}")
             break
 
         offset += current_chunk_size
@@ -137,7 +141,7 @@ async def wait_for_wakeword(sock, wake_word: str = "robot", timeout=60.0):
 
     frames: list[bytes] = []
 
-    print("[WAKE] Esperando llamada")
+    eprint("[WAKE] Esperando llamada")
 
     while True:
         recv_task = asyncio.create_task(loop.sock_recvfrom(sock, CHUNK))
@@ -155,9 +159,9 @@ async def wait_for_wakeword(sock, wake_word: str = "robot", timeout=60.0):
             text = result.get("text", "")
 
             if text:
-                print("[WAKE] se detecto la palabra " + text)
+                eprint("[WAKE] se detecto la palabra " + text)
                 if wake_word in text.split():
-                    print("[WAKE] Wake word detectada")
+                    eprint("[WAKE] Wake word detectada")
                     recognizer.Reset()
                     return
 
@@ -167,14 +171,14 @@ async def record_until_silence(sock, max_seconds: float = 30.0, end_word: str = 
     loop = asyncio.get_running_loop()
 
     frames: list[bytes] = []
-    print("[REC] Recording...")
+    eprint("[REC] Recording...")
     t0 = time.time()
     end = False
     while True:
         audioClient.LedControl(255, 255, 0)
         timeout = max_seconds - (time.time() - t0)
         if timeout <= 0:
-            print("[REC] Max record time reached; sending.")
+            eprint("[REC] Max record time reached; sending.")
             break
 
         recv_task = asyncio.create_task(loop.sock_recvfrom(sock, CHUNK))
@@ -233,7 +237,7 @@ async def play_reply_streaming(session):
             # Print model audio transcription (you enabled output_audio_transcription) :contentReference[oaicite:3]{index=3}
             ot = getattr(sc, "output_transcription", None)
             if ot and getattr(ot, "text", None):
-                print("[model transcript]", ot.text)
+                eprint("[model transcript]", ot.text)
 
             # If Search/tooling happens, Gemini 2.5 may emit executable_code / code_execution_result :contentReference[oaicite:4]{index=4}
             mt = getattr(sc, "model_turn", None)
@@ -241,10 +245,10 @@ async def play_reply_streaming(session):
                 for part in mt.parts:
                     if getattr(part, "executable_code", None) is not None:
                         saw_tooling = True
-                        print("[tool executable_code]\n", part.executable_code.code)
+                        eprint("[tool executable_code]\n", part.executable_code.code)
                     if getattr(part, "code_execution_result", None) is not None:
                         saw_tooling = True
-                        print("[tool code_execution_result]\n", part.code_execution_result.output)
+                        eprint("[tool code_execution_result]\n", part.code_execution_result.output)
 
                     inline = getattr(part, "inline_data", None)
                     
@@ -269,9 +273,9 @@ async def play_reply_streaming(session):
                 break
                 
         if not got_audio:
-            print("[WARN] No audio reply received.")
+            eprint("[WARN] No audio reply received.")
         if not saw_tooling:
-            print("[INFO] No tool/code-execution observed this turn (likely answered without Search).")
+            eprint("[INFO] No tool/code-execution observed this turn (likely answered without Search).")
 
 
 async def send_one_turn(session):
@@ -293,7 +297,7 @@ async def send_one_turn(session):
         try:
             await session.send_realtime_input(audio={"data": frame, "mime_type": f"audio/pcm;rate={MIC_RATE}"})
         except Exception as e:
-            print(f"[SESSION ERROR]: {e}")
+            eprint(f"[SESSION ERROR]: {e}")
         queue.task_done()
         await asyncio.sleep(chunk_secs - (time.time() - t0))  # helps VAD / turn-taking consistency
 
@@ -326,7 +330,7 @@ async def main():
                 try:
                     await turn_complete.wait()
                 except Exception as e:
-                    print(f"Excepcion {e}")
+                    eprint(f"Excepcion {e}")
                 turn_complete.clear()
                 end = await record_until_silence(sock, max_seconds = 30.0, end_word = END_WORD)
     finally:
@@ -335,7 +339,7 @@ async def main():
         if play_task:
             play_task.cancel()
         stop_pcm_stream(audioClient)
-        print("Exiting...")
+        eprint("Exiting...")
 
 
 if __name__ == "__main__":
