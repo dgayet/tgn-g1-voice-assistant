@@ -11,10 +11,10 @@ RUN apt-get update && apt-get upgrade -y && \
       pipx \
       libssl-dev \
       portaudio19-dev \
+      alsa-base alsa-utils libasound2t64 \
+      vim nmap \
+      python3-setuptools python3-wheel \
     && rm -rf /var/lib/apt/lists/*
-
-# Keep pip tooling current
-RUN apt install  python3-setuptools python3-wheel
 
 # ---- Build & install CycloneDDS (C library) ----
 WORKDIR /opt
@@ -39,9 +39,6 @@ RUN pip install --break-system-packages -e /packages/unitree_sdk2_python
 RUN pip install --break-system-packages -r /packages/tgn-g1-voice-assistant/requirements.txt
 
 RUN pip install --break-system-packages scipy
-
-RUN apt update && apt install -y alsa-base alsa-utils libasound2t64 && \
-    apt install vim nmap -y 
 
 # Keep container running by default
 CMD ["bash"]

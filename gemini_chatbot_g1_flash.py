@@ -63,7 +63,7 @@ VOSK_MODEL_PATH = "vosk-model-small-es-0.42"
 
 vosk_model = Model(VOSK_MODEL_PATH)
 recognizer = KaldiRecognizer(vosk_model, MIC_RATE)
-WAKE_WORD = "robot"
+WAKE_WORD = "hola"
 END_WORD = "gracias"
 
 # ---- Unitree client ----
