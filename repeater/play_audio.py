@@ -18,26 +18,30 @@ async def send_to_speaker(queue: asyncio.Queue):
     client = AudioClient()
     client.SetTimeout(10.0)
     client.Init()
+
+    _, old_volume = client.GetVolume()
+    client.SetVolume(100)
     
     stream_id = str(time.time())
 
-    while True:
-        data = await queue.get()
+    try:
+        while True:
+            data = await queue.get()
 
-        try:
-            if data is None:
-                break
+            try:
+                if data is None:
+                    break
 
-            ret_code, _ = await asyncio.to_thread(client.PlayStream, 'talking', stream_id, data)
-            if ret_code != 0:
-                print(f"[ERROR] Failed to send chunk, return code: {ret_code}")
+                ret_code, _ = await asyncio.to_thread(client.PlayStream, 'talking', stream_id, data)
+                if ret_code != 0:
+                    print(f"[ERROR] Failed to send chunk, return code: {ret_code}")
+            finally:
+                queue.task_done()
+    except asyncio.CancelledError:
+        print("[INFO] Stopping audio sender...")
+    finally:
+        client.SetVolume(old_volume['volume'])
 
-        except asyncio.CancelledError:
-            print("[INFO] Stopping audio sender...")
-        except Exception as e:
-            print(f"[ERROR] SDK exception: {e}")
-        finally:
-            queue.task_done()
 
 
 async def receive_audio(queue: asyncio.Queue):
