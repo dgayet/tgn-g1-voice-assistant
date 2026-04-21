@@ -9,12 +9,12 @@ import numpy as np
 
 FORMAT = pyaudio.paInt16
 CHANNELS = 1
-IP_ADDR = "192.168.123.164"
+IP_ADDR = "10.117.179.29"
 PORT = 10001
 CHUNK = 1024
 RATE = 16000
 INPUT_DEV = 24
-THRESHOLD = 0.02
+THRESHOLD = 0.01
 
 queue = asyncio.Queue()
 
@@ -43,8 +43,6 @@ async def capture_audio(stream, threshold):
             rms = np.sqrt(np.mean(data_int**2))
             if rms > threshold:
                 await queue.put(data)
-            else:
-                print("Muy bajo")
         except Exception as e:
             print(f"[CAPTURE] Mori: {e}")
             return
