@@ -5,6 +5,7 @@ import time
 import pyaudio
 import asyncio
 import socket
+import numpy as np
 
 FORMAT = pyaudio.paInt16
 CHANNELS = 1
@@ -12,7 +13,8 @@ IP_ADDR = "192.168.123.164"
 PORT = 10001
 CHUNK = 1024
 RATE = 16000
-INPUT_DEV = 0
+INPUT_DEV = 24
+THRESHOLD = 0.02
 
 queue = asyncio.Queue()
 
@@ -27,30 +29,41 @@ def open_streams(p: pyaudio.PyAudio, rate: int, chunk: int, in_dev: int):
     )
     return in_stream
 
-async def capture_audio(stream):
+async def capture_audio(stream, threshold):
     loop = asyncio.get_running_loop()
 
     while True:
-        data = await loop.run_in_executor(
-            None,  # thread pool default
-            stream.read,
-            CHUNK
-        )
-        await queue.put(data)
+        try:
+            data = await loop.run_in_executor(
+                None,  # thread pool default
+                stream.read,
+                CHUNK
+            )
+            data_int = np.frombuffer(data, dtype=np.int16)/65535
+            rms = np.sqrt(np.mean(data_int**2))
+            if rms > threshold:
+                await queue.put(data)
+            else:
+                print("Muy bajo")
+        except Exception as e:
+            print(f"[CAPTURE] Mori: {e}")
+            return
 
 async def send_audio(socket):
     loop = asyncio.get_running_loop() 
     while True:
-        data = await queue.get()
-        await loop.run_in_executor(None, sock.send, data)
-
-
+        try:
+            data = await queue.get()
+            await loop.run_in_executor(None, socket.send, data)
+        except Exception as e:
+            print(f"[SEND] Mori: {e}")
+            return
 
 async def main():
     p = pyaudio.PyAudio()
-    #sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
-    #sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    #sock.connect((IP_ADDR, PORT))
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    sock.connect((IP_ADDR, PORT))
     try:
         in_stream = open_streams(p, RATE, CHUNK, INPUT_DEV)
     except Exception as e:
@@ -58,12 +71,14 @@ async def main():
         print("Try a different --rate (common: 48000) or pick devices with --in-dev/--out-dev after running --list.")
         return 2
 
-    #asyncio.create_task(capture_audio(in_stream))
-    #asyncio.create_task(send_audio(sock))
+    capture_task = asyncio.create_task(capture_audio(in_stream, THRESHOLD))
+    send_task = asyncio.create_task(send_audio(sock))
+    
+    await asyncio.Future()
     while True:
         try:
-            pass
-        except KeyboardInterrupt:
+            await asyncio.gather(capture_task, send_task) 
+        except:
             print("Exiting...")
         finally:
             p.terminate()
