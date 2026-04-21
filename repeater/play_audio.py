@@ -41,7 +41,7 @@ async def send_to_speaker(queue: asyncio.Queue):
 
 
 async def receive_audio(queue: asyncio.Queue):
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
 
     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP) as sock:
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -74,7 +74,14 @@ async def main():
         print("[INFO] Shutting down...")
     finally:
         receive_task.cancel()
-        await queue.put(None)
+
+        while True:
+            try:
+                queue.put_nowait(None)
+                break
+            except asyncio.QueueFull:
+                await asyncio.sleep(0.01)
+
         await send_task
 
 
