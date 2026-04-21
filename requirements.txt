@@ -4,7 +4,6 @@ cachetools
 certifi
 charset-normalizer
 distro
-evdev
 exceptiongroup
 google-auth
 google-genai
@@ -12,6 +11,7 @@ h11
 httpcore
 httpx
 idna
+numpy
 pyasn1
 pyasn1_modules
 PyAudio
