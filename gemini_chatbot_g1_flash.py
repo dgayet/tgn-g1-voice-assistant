@@ -319,10 +319,12 @@ async def main():
         while True:
             await wait_for_wakeword(sock, WAKE_WORD)
             async with client.aio.live.connect(model=model, config=config) as session:
+                await session.send_client_content(turns=genai.types.Content(role='User', parts=[genai.types.Part(text='Hola!')]))
+
                 send_task = asyncio.create_task(send_one_turn(session))
                 play_task = asyncio.create_task(play_reply_streaming(session))
 
-                turn_complete.set()
+
                 while True:
                     try:
                         await turn_complete.wait()
