@@ -13,7 +13,7 @@ import numpy as np
 import struct
 import json
 import sys
-sys.path.append("./vendor")
+sys.path.append("../vendor")
 from vosk import Model, KaldiRecognizer
 # ---- Your known-good devices ----
 IN_DEV = 24     # ReSpeaker 4 Mic Array
@@ -60,7 +60,7 @@ DT = 1
 pya = pyaudio.PyAudio()
 client = genai.Client()
 
-VOSK_MODEL_PATH = "vosk-model-small-es-0.42"
+VOSK_MODEL_PATH = "../vosk-model-small-es-0.42"
 
 vosk_model = Model(VOSK_MODEL_PATH)
 recognizer = KaldiRecognizer(vosk_model, MIC_RATE)
