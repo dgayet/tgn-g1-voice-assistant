@@ -34,15 +34,16 @@ async def capture_audio(stream, threshold):
 
     while True:
         try:
+            print("Capturando")
             data = await loop.run_in_executor(
                 None,  # thread pool default
                 stream.read,
                 CHUNK
             )
-            data_int = np.frombuffer(data, dtype=np.int16)/65535
-            rms = np.sqrt(np.mean(data_int**2))
-            if rms > threshold:
-                await queue.put(data)
+            #data_int = np.frombuffer(data, dtype=np.int16)/65535
+            #rms = np.sqrt(np.mean(data_int**2))
+            #if rms > threshold:
+            await queue.put(data)
         except Exception as e:
             print(f"[CAPTURE] Mori: {e}")
             return
@@ -50,6 +51,7 @@ async def capture_audio(stream, threshold):
 async def send_audio(socket):
     loop = asyncio.get_running_loop() 
     while True:
+        print("Enviando")
         try:
             data = await queue.get()
             await loop.run_in_executor(None, socket.send, data)
@@ -83,3 +85,4 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
+
